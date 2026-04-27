@@ -94,7 +94,7 @@ class LangChainResponsesAgent(ResponsesAgent):
 
         thread_id = f"oka-{uuid4()}"
 
-        results = self._agent.invode(
+        results = self._agent.invoke(
             {"messages": msgs},
             config={
                 "configurable": {"thread_id": thread_id}
