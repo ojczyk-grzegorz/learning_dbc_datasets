@@ -13,13 +13,6 @@ from langgraph.checkpoint.memory import InMemorySaver
 from langgraph.graph.state import CompiledStateGraph
 
 
-LLM_ENDPOINT_NAME = "databricks-gpt-oss-120b"
-INDEX_NAME = "workspace.sephora_products_and_skincare_reviews.bronze_pdf_chunked_index"
-SYSTEM_PROMPT = """You are expert on Sephora's pricing strategy. Respond in a clear, professional, and factual tone
-    appropriate for engineers and technical staff. Use only verified information from the provided context, include 
-    reference to every information you provide. Do not hallucinate information. If you are unsure about the answer,
-    say "I don't know"."""
-
 
 def _load_config(path: str = "agent_config.yaml") -> dict[str, Any]:
     if not os.path.exists(path):
@@ -27,22 +20,16 @@ def _load_config(path: str = "agent_config.yaml") -> dict[str, Any]:
     with open(path, 'r', encoding='utf-8') as f:
         cfg = yaml.safe_load(f) or {}
     
-    llm_endpoint_name = cfg["llm_endpoint_name"]
-    
     vs: dict = cfg["vector_search"]
-    index_name =vs["index_name"]
-    system_prompt = vs["system_prompt"]   
-    num_results = int(vs.get("num_results", 5))
-    
     return {
-        "llm_endpoint_name": llm_endpoint_name,
-        "vs_index_name": index_name,
-        "vs_system_prompt": system_prompt,
-        "vs_num_results": num_results,
+        "llm_endpoint_name": cfg["llm_endpoint_name"],
+        "vs_index_name": vs["index_name"],
+        "vs_num_results": int(vs.get("num_results", 5)),
+        "system_prompt": cfg["system_prompt"],
     }
 
 
-def build_agent(llm_endpoint: str, index_name: str, system_prompt: str, num_results: int = 3) -> CompiledStateGraph:
+def build_agent(llm_endpoint: str, index_name: str, system_prompt: str, description: str, num_results: int = 3) -> CompiledStateGraph:
     model = ChatDatabricks(
         endpoint=llm_endpoint,
         max_tokens=500
@@ -50,7 +37,7 @@ def build_agent(llm_endpoint: str, index_name: str, system_prompt: str, num_resu
 
     vs_tool = VectorSearchRetrieverTool(
         index_name=index_name,
-        description="Sephora pricing strategy",
+        description=description,
         num_results=num_results,
     )
 
@@ -76,13 +63,14 @@ def _last_user_text(messages: list[dict[str, Any]]) -> str:
 
 
 class LangChainResponsesAgent(ResponsesAgent):
-    def __init__(self):
+    def __init__(self, system_prompt: str, description: str):
         cfg = _load_config()
         self._cfg = cfg
         self._agent = build_agent(
             llm_endpoint=cfg["llm_endpoint_name"],
             index_name=cfg["vs_index_name"],
-            system_prompt=cfg["vs_system_prompt"],
+            system_prompt=cfg["system_prompt"],
+            description=cfg["system_prompt"],
             num_results=cfg["vs_num_results"],
         )
 
