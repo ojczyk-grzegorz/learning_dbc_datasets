@@ -26,6 +26,7 @@ def _load_config(path: str = "agent_config.yaml") -> dict[str, Any]:
         "vs_index_name": vs["index_name"],
         "vs_num_results": int(vs.get("num_results", 5)),
         "system_prompt": cfg["system_prompt"],
+        "description": cfg["description"],
     }
 
 
@@ -70,7 +71,7 @@ class LangChainResponsesAgent(ResponsesAgent):
             llm_endpoint=cfg["llm_endpoint_name"],
             index_name=cfg["vs_index_name"],
             system_prompt=cfg["system_prompt"],
-            description=cfg["system_prompt"],
+            description=cfg["description"],
             num_results=cfg["vs_num_results"],
         )
 
