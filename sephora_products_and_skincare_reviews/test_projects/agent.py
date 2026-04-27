@@ -21,19 +21,20 @@ def _load_config(path: str = "agent_config.yaml") -> dict[str, Any]:
     llm_endpoint_name = cfg["llm_endpoint_name"]
     
     vs: dict = cfg["vector_search"]
-    index_name =vs["index_name"]
+    index_name = vs["index_name"]
     num_results = int(vs.get("num_results", 5))
     
     return {
         "llm_endpoint_name": llm_endpoint_name,
-        "vs_index_name": index_name,
-        "vs_num_results": num_results,
-        "description": cfg["description"],
+        "vs_index_name": vs["index_name"],
+        "vs_num_results": int(vs.get("num_results", 5)),
+        "tool_description": cfg["tool_description"],
+        "tool_name": cfg["tool_name"],
         "system_prompt": cfg["system_prompt"]
     }
 
 
-def build_agent(llm_endpoint: str, index_name: str, system_prompt: str, description: str, num_results: int = 3) -> CompiledStateGraph:
+def build_agent(llm_endpoint: str, index_name: str, system_prompt: str, tool_name: str, tool_description: str, num_results: int = 3) -> CompiledStateGraph:
     model = ChatDatabricks(
         endpoint=llm_endpoint,
         max_tokens=500
@@ -41,7 +42,8 @@ def build_agent(llm_endpoint: str, index_name: str, system_prompt: str, descript
 
     vs_tool = VectorSearchRetrieverTool(
         index_name=index_name,
-        description=description,
+        tool_name=tool_name,
+        tool_description=tool_description,
         num_results=num_results,
     )
 
@@ -74,7 +76,8 @@ def langchain_responses_agent_fact(config_file: str) -> type:
             self._agent = build_agent(
                 llm_endpoint=cfg["llm_endpoint_name"],
                 index_name=cfg["vs_index_name"],
-                description=cfg["description"],
+                tool_name=cfg["tool_description"],
+                tool_description=cfg["tool_description"],
                 num_results=cfg["vs_num_results"],
                 system_prompt=cfg["system_prompt"],
             )
