@@ -13,20 +13,24 @@ from langgraph.checkpoint.memory import InMemorySaver
 from langgraph.graph.state import CompiledStateGraph
 
 
-
 def _load_config(path: str = "agent_config.yaml") -> dict[str, Any]:
     if not os.path.exists(path):
         raise FileNotFoundError(f"Config file not found at path: {path}")
     with open(path, 'r', encoding='utf-8') as f:
         cfg = yaml.safe_load(f) or {}
     
+    llm_endpoint_name = cfg["llm_endpoint_name"]
+    
     vs: dict = cfg["vector_search"]
+    index_name =vs["index_name"]
+    num_results = int(vs.get("num_results", 5))
+    
     return {
-        "llm_endpoint_name": cfg["llm_endpoint_name"],
-        "vs_index_name": vs["index_name"],
-        "vs_num_results": int(vs.get("num_results", 5)),
-        "system_prompt": cfg["system_prompt"],
+        "llm_endpoint_name": llm_endpoint_name,
+        "vs_index_name": index_name,
+        "vs_num_results": num_results,
         "description": cfg["description"],
+        "system_prompt": cfg["system_prompt"]
     }
 
 
@@ -63,42 +67,44 @@ def _last_user_text(messages: list[dict[str, Any]]) -> str:
     return ""
 
 
-class LangChainResponsesAgent(ResponsesAgent):
-    def __init__(self, system_prompt: str, description: str):
-        cfg = _load_config()
-        self._cfg = cfg
-        self._agent = build_agent(
-            llm_endpoint=cfg["llm_endpoint_name"],
-            index_name=cfg["vs_index_name"],
-            system_prompt=cfg["system_prompt"],
-            description=cfg["description"],
-            num_results=cfg["vs_num_results"],
-        )
+def langchain_responses_agent_fact(config_file: str) -> type:
+    class LangChainResponsesAgent(ResponsesAgent):
+        def __init__(self, *args):
+            cfg = _load_config(config_file)
+            self._cfg = cfg
+            self._agent = build_agent(
+                llm_endpoint=cfg["llm_endpoint_name"],
+                index_name=cfg["vs_index_name"],
+                description=cfg["description"],
+                num_results=cfg["vs_num_results"],
+                system_prompt=cfg["system_prompt"],
+            )
 
-    def predict(self, request: ResponsesAgentRequest) -> ResponsesAgentResponse:
-        msgs = [m.model_dump() for m in request.input]
-        if not msgs:
-            raise ValueError("No messages!")
-        _ = _last_user_text(msgs)
+        def predict(self, request: ResponsesAgentRequest) -> ResponsesAgentResponse:
+            msgs = [m.model_dump() for m in request.input]
+            if not msgs:
+                raise ValueError("No messages!")
+            _ = _last_user_text(msgs)
 
-        thread_id = f"oka-{uuid4()}"
+            thread_id = f"oka-{uuid4()}"
 
-        results = self._agent.invoke(
-            {"messages": msgs},
-            config={
-                "configurable": {"thread_id": thread_id}
-            }
-        )
+            results = self._agent.invoke(
+                {"messages": msgs},
+                config={
+                    "configurable": {"thread_id": thread_id}
+                }
+            )
 
-        try:
-            text = results["messages"][-1].content
-        except Exception:
-            text = str(results)
+            try:
+                text = results["messages"][-1].content
+            except Exception:
+                text = str(results)
 
-        return ResponsesAgentResponse(
-            output=[self.create_text_output_item(text, str(uuid4()))],
-            custom_outputs=request.custom_inputs
-        )
+            return ResponsesAgentResponse(
+                output=[self.create_text_output_item(text, str(uuid4()))],
+                custom_outputs=request.custom_inputs
+            )
+    return LangChainResponsesAgent
     
-agent = LangChainResponsesAgent()
-mlflow.models.set_model(agent)
+# agent = LangChainResponsesAgent()
+# mlflow.models.set_model(agent)
