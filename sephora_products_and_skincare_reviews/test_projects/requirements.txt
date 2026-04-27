@@ -1,0 +1,5 @@
+databricks_langchain==0.9.0 -q
+databricks-vectorsearch -q
+mlflow-skinny[databricks] -q
+langchain==1.0.0 -q
+langgraph==1.0.10 -q
