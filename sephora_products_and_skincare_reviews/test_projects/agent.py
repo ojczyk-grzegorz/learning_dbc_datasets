@@ -3,7 +3,6 @@ from uuid import uuid4
 from typing import Any
 
 import yaml
-import mlflow
 from mlflow.pyfunc import ResponsesAgent
 from mlflow.types.responses import ResponsesAgentRequest, ResponsesAgentResponse
 
@@ -105,6 +104,3 @@ def langchain_responses_agent_fact(config_file: str) -> type:
                 custom_outputs=request.custom_inputs
             )
     return LangChainResponsesAgent
-    
-# agent = LangChainResponsesAgent()
-# mlflow.models.set_model(agent)
